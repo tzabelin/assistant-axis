@@ -36,6 +36,9 @@ from .generation import (
     generate_response,
     generate_responses,
     format_conversation,
+    supports_system_prompt,
+    VLLMGenerator,
+    RoleResponseGenerator,
 )
 from .steering import (
     ActivationSteering,
@@ -72,6 +75,9 @@ __all__ = [
     "generate_response",
     "generate_responses",
     "format_conversation",
+    "supports_system_prompt",
+    "VLLMGenerator",
+    "RoleResponseGenerator",
     # Steering
     "ActivationSteering",
     "create_feature_ablation_steerer",
