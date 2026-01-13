@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv",
     "tqdm",
     "jsonlines",
+    "matplotlib>=3.10.8",
 ]
 
 [project.optional-dependencies]
