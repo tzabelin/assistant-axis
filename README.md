@@ -62,14 +62,20 @@ print(f"Projection: {projection:.4f}")  # Higher = more assistant-like
 
 ## Computing the Axis
 
-The full pipeline consists of 5 scripts:
+Run the full pipeline with the example script:
+
+```bash
+./pipeline/run_pipeline.sh
+```
+
+Or run each step individually:
 
 ### 1. Generate Responses
 
 Generate model responses for all roles using vLLM batch inference:
 
 ```bash
-uv run scripts/1_generate.py \
+uv run pipeline/1_generate.py \
     --model google/gemma-2-27b-it \
     --roles_dir data/prompts/roles \
     --questions_file data/prompts/questions.jsonl \
@@ -82,7 +88,7 @@ uv run scripts/1_generate.py \
 Extract mean response activations:
 
 ```bash
-uv run scripts/2_activations.py \
+uv run pipeline/2_activations.py \
     --model google/gemma-2-27b-it \
     --responses_dir outputs/gemma-2-27b/responses \
     --output_dir outputs/gemma-2-27b/activations
@@ -93,7 +99,7 @@ uv run scripts/2_activations.py \
 Score role adherence using a judge LLM (requires `OPENAI_API_KEY`):
 
 ```bash
-uv run scripts/3_judge.py \
+uv run pipeline/3_judge.py \
     --responses_dir outputs/gemma-2-27b/responses \
     --roles_dir data/prompts/roles \
     --output_dir outputs/gemma-2-27b/scores \
@@ -111,7 +117,7 @@ uv run scripts/3_judge.py \
 Compute pos_3 vectors (mean of score=3 activations):
 
 ```bash
-uv run scripts/4_vectors.py \
+uv run pipeline/4_vectors.py \
     --activations_dir outputs/gemma-2-27b/activations \
     --scores_dir outputs/gemma-2-27b/scores \
     --output_dir outputs/gemma-2-27b/vectors
@@ -122,7 +128,7 @@ uv run scripts/4_vectors.py \
 Aggregate into the final axis:
 
 ```bash
-uv run scripts/5_axis.py \
+uv run pipeline/5_axis.py \
     --vectors_dir outputs/gemma-2-27b/vectors \
     --output outputs/gemma-2-27b/axis.pt
 ```

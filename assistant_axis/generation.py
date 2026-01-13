@@ -29,26 +29,40 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-def supports_system_prompt(model_name: str) -> bool:
+def supports_system_prompt(tokenizer) -> bool:
     """
-    Check if a model supports system prompts in chat templates.
+    Check if a tokenizer's chat template supports system prompts.
+
+    Detects support by applying the template with a test system message
+    and checking if it appears in the output.
 
     Args:
-        model_name: HuggingFace model name
+        tokenizer: HuggingFace tokenizer
 
     Returns:
         True if model supports system prompts, False otherwise
     """
-    model_lower = model_name.lower()
-    if "gemma-2" in model_lower:
+    test_message = "__SYSTEM_TEST__"
+    test_conversation = [
+        {"role": "system", "content": test_message},
+        {"role": "user", "content": "hello"},
+    ]
+
+    try:
+        output = tokenizer.apply_chat_template(
+            test_conversation,
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+        return test_message in output
+    except Exception:
         return False
-    return True
 
 
 def format_conversation(
     instruction: Optional[str],
     question: str,
-    model_name: str
+    tokenizer,
 ) -> List[Dict[str, str]]:
     """
     Format a conversation for model input.
@@ -56,19 +70,19 @@ def format_conversation(
     Args:
         instruction: Optional system instruction
         question: User question
-        model_name: Model name (to determine formatting)
+        tokenizer: HuggingFace tokenizer (to check system prompt support)
 
     Returns:
         List of message dicts for the conversation
     """
-    if supports_system_prompt(model_name):
+    if supports_system_prompt(tokenizer):
         messages = []
         if instruction:
             messages.append({"role": "system", "content": instruction})
         messages.append({"role": "user", "content": question})
         return messages
     else:
-        # For Gemma: concatenate instruction and question
+        # Concatenate instruction with question for models without system support
         if instruction:
             formatted = f"{instruction}\n\n{question}"
         else:
@@ -295,6 +309,7 @@ class VLLMGenerator:
             List of result dicts with conversation, prompt_index, question_index
         """
         self.load()
+        tokenizer = self.llm.get_tokenizer()
 
         if prompt_indices is None:
             prompt_indices = list(range(len(instructions)))
@@ -310,7 +325,7 @@ class VLLMGenerator:
             instruction = instructions[prompt_idx]
 
             for q_idx, question in enumerate(questions):
-                conversation = format_conversation(instruction, question, self.model_name)
+                conversation = format_conversation(instruction, question, tokenizer)
                 all_conversations.append(conversation)
                 all_metadata.append({
                     "system_prompt": instruction,
