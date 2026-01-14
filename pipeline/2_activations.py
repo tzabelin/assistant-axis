@@ -69,6 +69,8 @@ def extract_activations_batch(
     if 'qwen' in pm.model_name.lower():
         chat_kwargs['enable_thinking'] = enable_thinking
 
+    print(f"DEBUG: chat_kwargs = {chat_kwargs}")
+
     all_activations = []
     num_conversations = len(conversations)
 
@@ -88,6 +90,12 @@ def extract_activations_batch(
 
         # Build spans for this batch
         _, batch_spans, span_metadata = encoder.build_batch_turn_spans(batch_conversations, **chat_kwargs)
+
+        # Debug: print first 2 assistant spans
+        if batch_start == 0:
+            for span in batch_spans[:4]:
+                if span['role'] == 'assistant':
+                    print(f"  DEBUG span: conv={span['conversation_id']} start={span['start']} end={span['end']} n_tokens={span['n_tokens']}")
 
         # Use SpanMapper to get per-turn mean activations
         # Returns list of tensors, each (num_turns, num_layers, hidden_size)

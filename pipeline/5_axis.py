@@ -53,7 +53,7 @@ def main():
         vector_type = data.get("type", "unknown")
         role = data.get("role", vec_file.stem)
 
-        if role == "default" or vector_type == "mean":
+        if "default" in role or vector_type == "mean":
             default_vectors.append(vector)
             print(f"  {role}: default/mean vector")
         else:
@@ -89,14 +89,7 @@ def main():
     print(f"  Max norm: {norms.max():.4f} (layer {norms.argmax().item()})")
 
     # Save axis
-    save_data = {
-        "axis": axis,
-        "default_mean": default_mean,
-        "role_mean": role_mean,
-        "n_default": len(default_vectors),
-        "n_roles": len(role_vectors),
-    }
-    torch.save(save_data, output_path)
+    torch.save(axis, output_path)
     print(f"\nSaved axis to {output_path}")
 
 

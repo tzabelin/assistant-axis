@@ -29,15 +29,19 @@ echo ""
 #     --model "$MODEL" \
 #     --output_dir "$OUTPUT_DIR/responses"
 
-# Step 2: Extract activations (SET BATCH SIZE APPROPRIATELY)
-echo ""
-echo "=== Step 2: Extracting activations ==="
-uv run 2_activations.py \
-    --model "$MODEL" \
-    --responses_dir "/workspace/qwen-3-32b/roles_240/responses" \
-    --output_dir "$OUTPUT_DIR/activations" --roles "0_default"
+# Step 2: Extract activations 
+# SET BATCH SIZE APPROPRIATELY
+# echo ""
+# echo "=== Step 2: Extracting activations ==="
+# uv run 2_activations.py \
+#     --model "$MODEL" \
+#     --responses_dir "$OUTPUT_DIR/responses" \
+#     --output_dir "$OUTPUT_DIR/activations" \
+#     --batch_size 16
 
 # Step 3: Score responses with judge LLM
+# WILL NOT REPEAT WORK ON RERUN
+# RERUN IS RECOMMENDED IN CASE SOME RESPONSES ARE MALFORMED
 # echo ""
 # echo "=== Step 3: Scoring responses ==="
 # uv run 3_judge.py \
@@ -53,11 +57,11 @@ uv run 2_activations.py \
 #     --output_dir "$OUTPUT_DIR/vectors"
 
 # # Step 5: Compute final axis
-# echo ""
-# echo "=== Step 5: Computing axis ==="
-# uv run 5_axis.py \
-#     --vectors_dir "$OUTPUT_DIR/vectors" \
-#     --output "$OUTPUT_DIR/axis.pt"
+echo ""
+echo "=== Step 5: Computing axis ==="
+uv run 5_axis.py \
+    --vectors_dir "$OUTPUT_DIR/vectors" \
+    --output "$OUTPUT_DIR/axis.pt"
 
 # echo ""
 # echo "=== Pipeline complete ==="

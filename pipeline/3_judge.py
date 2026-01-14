@@ -187,6 +187,7 @@ async def main_async():
             # Get role eval prompt
             role_file = roles_dir / f"{role}.json"
             if not role_file.exists():
+                logger.info(f"  {role}: no role file, skipping")
                 continue
 
             eval_prompt_template = load_role_eval_prompt(role_file)
@@ -265,8 +266,8 @@ async def main_async():
         # Get role eval prompt
         role_file = roles_dir / f"{role}.json"
         if not role_file.exists():
-            errors.append(f"{role}: role file not found")
-            failed += 1
+            logger.info(f"Skipping {role}: no role file found")
+            skipped += 1
             continue
 
         eval_prompt_template = load_role_eval_prompt(role_file)

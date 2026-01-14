@@ -82,7 +82,7 @@ def main():
     parser.add_argument("--scores_dir", type=str, required=True, help="Directory with score JSON files")
     parser.add_argument("--output_dir", type=str, required=True, help="Output directory for vector .pt files")
     parser.add_argument("--min_count", type=int, default=50, help="Minimum score=3 samples required")
-    parser.add_argument("--skip_existing", action="store_true", help="Skip roles with existing output")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output files")
     args = parser.parse_args()
 
     # Create output directory
@@ -104,8 +104,8 @@ def main():
         role = act_file.stem
         output_file = output_dir / f"{role}.pt"
 
-        # Skip if exists
-        if args.skip_existing and output_file.exists():
+        # Skip if exists (unless --overwrite)
+        if output_file.exists() and not args.overwrite:
             skipped += 1
             continue
 
@@ -118,8 +118,8 @@ def main():
             continue
 
         try:
-            if role == "default":
-                # Default role: use all activations (no score filtering)
+            if "default" in role:
+                # Default roles: use all activations (no score filtering)
                 vector = compute_mean_vector(activations)
                 vector_type = "mean"
             else:
