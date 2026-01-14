@@ -5,19 +5,21 @@ The assistant axis is a direction in activation space that captures the differen
 between role-playing and default assistant behavior in language models.
 
 Example:
-    from assistant_axis import load_model, load_axis, ActivationSteering
+    from assistant_axis import get_config, load_axis, ActivationSteering
+    from assistant_axis.internals import ProbingModel
 
     # Load model and axis
-    model, tokenizer = load_model("google/gemma-2-27b-it")
+    pm = ProbingModel("google/gemma-2-27b-it")
     axis = load_axis("outputs/axis.pt")
+    config = get_config("google/gemma-2-27b-it")
 
     # Steer model outputs
-    with ActivationSteering(model, steering_vectors=[axis[22]],
-                           coefficients=[1.0], layer_indices=[22]):
-        output = model.generate(...)
+    with ActivationSteering(pm.model, steering_vectors=[axis[config["target_layer"]]],
+                           coefficients=[1.0], layer_indices=[config["target_layer"]]):
+        output = pm.model.generate(...)
 """
 
-from .models import load_model, get_config, get_short_name, MODEL_CONFIGS
+from .models import get_config, MODEL_CONFIGS
 from .axis import (
     compute_axis,
     load_axis,
@@ -28,17 +30,9 @@ from .axis import (
     axis_norm_per_layer,
     aggregate_role_vectors,
 )
-from .activations import (
-    extract_response_activations,
-    tokenize_conversation,
-    get_response_token_indices,
-    project_onto_axis,
-)
 from .generation import (
     generate_response,
-    generate_responses,
     format_conversation,
-    supports_system_prompt,
     VLLMGenerator,
     RoleResponseGenerator,
 )
@@ -57,9 +51,7 @@ from .pca import (
 
 __all__ = [
     # Models
-    "load_model",
     "get_config",
-    "get_short_name",
     "MODEL_CONFIGS",
     # Axis
     "compute_axis",
@@ -70,16 +62,9 @@ __all__ = [
     "cosine_similarity_per_layer",
     "axis_norm_per_layer",
     "aggregate_role_vectors",
-    # Activations
-    "extract_response_activations",
-    "tokenize_conversation",
-    "get_response_token_indices",
-    "project_onto_axis",
     # Generation
     "generate_response",
-    "generate_responses",
     "format_conversation",
-    "supports_system_prompt",
     "VLLMGenerator",
     "RoleResponseGenerator",
     # Steering

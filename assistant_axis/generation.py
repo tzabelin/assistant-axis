@@ -1,15 +1,10 @@
 """
 Response generation utilities for transformer models.
 
-This module provides functions for generating model responses using both
-HuggingFace transformers (for interactive use) and vLLM (for batch inference).
+This module provides functions for generating model responses using vLLM
+for batch inference.
 
-Example (HuggingFace - interactive):
-    from assistant_axis import load_model
-    from assistant_axis.generation import generate_response
-
-    model, tokenizer = load_model("google/gemma-2-27b-it")
-    response = generate_response(model, tokenizer, conversation)
+For HuggingFace generation, use ProbingModel.generate() from assistant_axis.internals.
 
 Example (vLLM - batch inference):
     from assistant_axis.generation import VLLMGenerator
@@ -28,71 +23,6 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-
-def supports_system_prompt(tokenizer) -> bool:
-    """
-    Check if a tokenizer's chat template supports system prompts.
-
-    Detects support by applying the template with a test system message
-    and checking if it appears in the output.
-
-    Args:
-        tokenizer: HuggingFace tokenizer
-
-    Returns:
-        True if model supports system prompts, False otherwise
-    """
-    test_message = "__SYSTEM_TEST__"
-    test_conversation = [
-        {"role": "system", "content": test_message},
-        {"role": "user", "content": "hello"},
-    ]
-
-    try:
-        output = tokenizer.apply_chat_template(
-            test_conversation,
-            tokenize=False,
-            add_generation_prompt=False,
-        )
-        return test_message in output
-    except Exception:
-        return False
-
-
-def format_conversation(
-    instruction: Optional[str],
-    question: str,
-    tokenizer,
-) -> List[Dict[str, str]]:
-    """
-    Format a conversation for model input.
-
-    Args:
-        instruction: Optional system instruction
-        question: User question
-        tokenizer: HuggingFace tokenizer (to check system prompt support)
-
-    Returns:
-        List of message dicts for the conversation
-    """
-    if supports_system_prompt(tokenizer):
-        messages = []
-        if instruction:
-            messages.append({"role": "system", "content": instruction})
-        messages.append({"role": "user", "content": question})
-        return messages
-    else:
-        # Concatenate instruction with question for models without system support
-        if instruction:
-            formatted = f"{instruction}\n\n{question}"
-        else:
-            formatted = question
-        return [{"role": "user", "content": formatted}]
-
-
-# =============================================================================
-# HuggingFace Generation (for interactive use / notebooks)
-# =============================================================================
 
 def generate_response(
     model,
@@ -118,7 +48,7 @@ def generate_response(
     Returns:
         Generated response text
     """
-    # Disable thinking for Qwen models (https://github.com/vllm-project/vllm/issues/18066)
+    # Disable thinking for Qwen models
     chat_template_kwargs = {}
     if hasattr(tokenizer, 'name_or_path') and "qwen" in tokenizer.name_or_path.lower():
         chat_template_kwargs["enable_thinking"] = False
@@ -151,50 +81,52 @@ def generate_response(
     return response
 
 
-def generate_responses(
-    model,
+def format_conversation(
+    instruction: Optional[str],
+    question: str,
     tokenizer,
-    conversations: List[List[Dict[str, str]]],
-    max_new_tokens: int = 512,
-    temperature: float = 0.7,
-    top_p: float = 0.9,
-    do_sample: bool = True,
-    show_progress: bool = True,
-) -> List[str]:
+) -> List[Dict[str, str]]:
     """
-    Generate responses for multiple conversations using HuggingFace (sequential).
-
-    For batch inference, use VLLMGenerator instead.
+    Format a conversation for model input.
 
     Args:
-        model: HuggingFace model
-        tokenizer: HuggingFace tokenizer
-        conversations: List of conversations
-        max_new_tokens: Maximum tokens to generate
-        temperature: Sampling temperature
-        top_p: Top-p sampling parameter
-        do_sample: Whether to sample
-        show_progress: Whether to show progress bar
+        instruction: Optional system instruction
+        question: User question
+        tokenizer: HuggingFace tokenizer (to check system prompt support)
 
     Returns:
-        List of generated response texts
+        List of message dicts for the conversation
     """
-    responses = []
-    iterator = tqdm(conversations, desc="Generating") if show_progress else conversations
+    # Check system prompt support by testing the chat template
+    test_message = "__SYSTEM_TEST__"
+    test_conversation = [
+        {"role": "system", "content": test_message},
+        {"role": "user", "content": "hello"},
+    ]
 
-    for conversation in iterator:
-        response = generate_response(
-            model=model,
-            tokenizer=tokenizer,
-            conversation=conversation,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            do_sample=do_sample,
+    try:
+        output = tokenizer.apply_chat_template(
+            test_conversation,
+            tokenize=False,
+            add_generation_prompt=False,
         )
-        responses.append(response)
+        supports_system = test_message in output
+    except Exception:
+        supports_system = False
 
-    return responses
+    if supports_system:
+        messages = []
+        if instruction:
+            messages.append({"role": "system", "content": instruction})
+        messages.append({"role": "user", "content": question})
+        return messages
+    else:
+        # Concatenate instruction with question for models without system support
+        if instruction:
+            formatted = f"{instruction}\n\n{question}"
+        else:
+            formatted = question
+        return [{"role": "user", "content": formatted}]
 
 
 # =============================================================================

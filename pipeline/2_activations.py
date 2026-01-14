@@ -22,33 +22,13 @@ from typing import Dict, List, Optional
 import jsonlines
 import torch
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from assistant_axis.activations import get_model_layers
+from assistant_axis.internals import ProbingModel, ConversationEncoder, ActivationExtractor, SpanMapper
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-
-def get_response_indices(tokenizer, conversation: List[Dict[str, str]], model_name: str = None) -> List[int]:
-    """Get token indices for assistant response tokens."""
-    # Tokenize full conversation
-    full_text = tokenizer.apply_chat_template(
-        conversation, tokenize=False, add_generation_prompt=False
-    )
-    full_tokens = tokenizer(full_text, add_special_tokens=False)["input_ids"]
-
-    # Tokenize without assistant
-    non_assistant = [m for m in conversation if m["role"] != "assistant"]
-    prompt_text = tokenizer.apply_chat_template(
-        non_assistant, tokenize=False, add_generation_prompt=True
-    )
-    prompt_tokens = tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
-
-    response_start = len(prompt_tokens)
-    return list(range(response_start, len(full_tokens)))
 
 
 def load_responses(responses_file: Path) -> List[dict]:
@@ -61,16 +41,17 @@ def load_responses(responses_file: Path) -> List[dict]:
 
 
 def extract_activations_batch(
-    model,
-    tokenizer,
+    pm: ProbingModel,
     conversations: List[List[Dict[str, str]]],
     layers: List[int],
     batch_size: int = 16,
     max_length: int = 2048,
-    model_name: str = None,
 ) -> List[Optional[torch.Tensor]]:
     """Extract mean response activations for a batch of conversations."""
-    model_layers = get_model_layers(model)
+    encoder = ConversationEncoder(pm.tokenizer, pm.model_name)
+    extractor = ActivationExtractor(pm, encoder)
+    span_mapper = SpanMapper(pm.tokenizer)
+
     all_activations = []
     num_conversations = len(conversations)
 
@@ -78,84 +59,46 @@ def extract_activations_batch(
         batch_end = min(batch_start + batch_size, num_conversations)
         batch_conversations = conversations[batch_start:batch_end]
 
-        # Format prompts
-        formatted_prompts = []
-        for conv in batch_conversations:
-            prompt = tokenizer.apply_chat_template(
-                conv, tokenize=False, add_generation_prompt=False
-            )
-            formatted_prompts.append(prompt)
-
-        # Tokenize batch
-        batch_tokens = tokenizer(
-            formatted_prompts,
-            return_tensors="pt",
-            add_special_tokens=False,
-            padding=True,
-            truncation=True,
-            max_length=max_length
+        # Use ActivationExtractor.batch_conversations to get activations
+        batch_activations, batch_metadata = extractor.batch_conversations(
+            batch_conversations,
+            layer=layers,
+            max_length=max_length,
         )
 
-        device = next(model.parameters()).device
-        input_ids = batch_tokens["input_ids"].to(device)
-        attention_mask = batch_tokens["attention_mask"].to(device)
+        # batch_activations shape: (num_layers, batch_size, max_seq_len, hidden_size)
 
-        # Get response indices for each conversation
-        batch_response_indices = []
-        for conv in batch_conversations:
-            response_indices = get_response_indices(tokenizer, conv, model_name)
-            batch_response_indices.append(response_indices)
+        # Build spans for this batch
+        _, batch_spans, span_metadata = encoder.build_batch_turn_spans(batch_conversations)
 
-        # Set up hooks
-        layer_outputs = {}
+        # Use SpanMapper to get per-turn mean activations
+        # Returns list of tensors, each (num_turns, num_layers, hidden_size)
+        conv_activations_list = span_mapper.map_spans(batch_activations, batch_spans, batch_metadata)
 
-        def create_hook_fn(layer_idx):
-            def hook_fn(module, input, output):
-                act = output[0] if isinstance(output, tuple) else output
-                layer_outputs[layer_idx] = act
-            return hook_fn
-
-        handles = []
-        for layer_idx in layers:
-            handle = model_layers[layer_idx].register_forward_hook(create_hook_fn(layer_idx))
-            handles.append(handle)
-
-        # Forward pass
-        try:
-            with torch.no_grad():
-                model(input_ids, attention_mask=attention_mask)
-        finally:
-            for handle in handles:
-                handle.remove()
-
-        # Extract activations for each conversation
-        for i, response_indices in enumerate(batch_response_indices):
-            if not response_indices:
+        # For each conversation, we want the assistant turn activations
+        # In single-turn conversations: turn 0 = user, turn 1 = assistant
+        for conv_acts in conv_activations_list:
+            if conv_acts.numel() == 0:
                 all_activations.append(None)
                 continue
 
-            max_seq_len = layer_outputs[layers[0]].size(1)
-            valid_indices = [idx for idx in response_indices if 0 <= idx < max_seq_len]
-
-            if not valid_indices:
+            # conv_acts shape: (num_turns, num_layers, hidden_size)
+            # For single-turn: (2, num_layers, hidden_size) - take turn 1 (assistant)
+            # For multi-turn: take odd indices (assistant turns)
+            if conv_acts.shape[0] >= 2:
+                # Take the last assistant turn (index 1 for single-turn)
+                assistant_act = conv_acts[1::2]  # All assistant turns
+                if assistant_act.shape[0] > 0:
+                    # Take mean across all assistant turns, transpose to (num_layers, hidden_size)
+                    mean_act = assistant_act.mean(dim=0).cpu()  # (num_layers, hidden_size)
+                    all_activations.append(mean_act)
+                else:
+                    all_activations.append(None)
+            else:
                 all_activations.append(None)
-                continue
-
-            conv_activations = []
-            for layer_idx in sorted(layers):
-                layer_acts = layer_outputs[layer_idx][i]  # (seq_len, hidden_size)
-                response_acts = layer_acts[valid_indices]  # (n_response_tokens, hidden_size)
-                mean_act = response_acts.mean(dim=0).cpu()  # (hidden_size,)
-                conv_activations.append(mean_act)
-
-            conv_activations = torch.stack(conv_activations)  # (n_layers, hidden_size)
-            all_activations.append(conv_activations)
 
         # Cleanup
-        for layer_idx in list(layer_outputs.keys()):
-            del layer_outputs[layer_idx]
-        del input_ids, attention_mask
-
+        del batch_activations
         if (batch_start // batch_size) % 5 == 0:
             torch.cuda.empty_cache()
 
@@ -180,21 +123,12 @@ def main():
 
     responses_dir = Path(args.responses_dir)
 
-    # Load model
+    # Load model using ProbingModel
     logger.info(f"Loading model: {args.model}")
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        device_map="auto",
-        torch_dtype=torch.bfloat16,
-    )
+    pm = ProbingModel(args.model)
 
     # Determine layers
-    model_layers = get_model_layers(model)
-    n_layers = len(model_layers)
+    n_layers = len(pm.get_layers())
     logger.info(f"Model has {n_layers} layers")
 
     if args.layers == "all":
@@ -240,13 +174,11 @@ def main():
 
         # Extract activations
         activations_list = extract_activations_batch(
-            model=model,
-            tokenizer=tokenizer,
+            pm=pm,
             conversations=conversations,
             layers=layers,
             batch_size=args.batch_size,
             max_length=args.max_length,
-            model_name=args.model,
         )
 
         # Build activation dict

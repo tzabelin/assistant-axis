@@ -1,19 +1,19 @@
 """
-Model loading and configuration utilities.
+Model configuration utilities.
 
-This module provides functions for loading transformer models and
-accessing model-specific configuration like target layers.
+This module provides configuration lookup for known models, including
+project-specific values like target layers for axis computation.
+
+For model loading, use ProbingModel from assistant_axis.internals instead.
 
 Example:
-    from assistant_axis import load_model, get_config
+    from assistant_axis import get_config
+    from assistant_axis.internals import ProbingModel
 
-    model, tokenizer = load_model("google/gemma-2-27b-it")
+    pm = ProbingModel("google/gemma-2-27b-it")
     config = get_config("google/gemma-2-27b-it")
     target_layer = config["target_layer"]
 """
-
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 MODEL_CONFIGS = {
@@ -98,40 +98,3 @@ def get_config(model_name: str) -> dict:
         }
     except Exception as e:
         raise ValueError(f"Could not infer config for model {model_name}: {e}")
-
-
-def load_model(
-    model_name: str,
-    device_map: str = "auto",
-    torch_dtype: torch.dtype = torch.bfloat16,
-    **kwargs
-) -> tuple:
-    """
-    Load a model and tokenizer from HuggingFace.
-
-    Args:
-        model_name: HuggingFace model name
-        device_map: Device mapping strategy (default: "auto")
-        torch_dtype: Model dtype (default: bfloat16)
-        **kwargs: Additional arguments passed to AutoModelForCausalLM.from_pretrained
-
-    Returns:
-        Tuple of (model, tokenizer)
-    """
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        device_map=device_map,
-        torch_dtype=torch_dtype,
-        **kwargs
-    )
-
-    return model, tokenizer
-
-
-def get_short_name(model_name: str) -> str:
-    """Get short display name for a model."""
-    return get_config(model_name)["short_name"]
