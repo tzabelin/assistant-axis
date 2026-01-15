@@ -1,4 +1,4 @@
-# Assistant Axis
+# The Assistant Axis
 
 **Situating and Stabilizing the Default Persona of Language Models**
 
@@ -31,6 +31,50 @@ cd assistant-axis
 # Install with uv (recommended)
 uv sync
 ```
+
+## Understanding the Axis
+
+The Assistant Axis is computed as:
+
+```
+axis = mean(default_activations) - mean(role_activations)
+```
+
+Where:
+- `default_activations`: Activations from neutral system prompts ("You are an AI assistant")
+- `role_activations`: Activations from responses fully embodying character roles (score=3 from judge)
+
+The axis points **from role-playing toward default assistant behavior**:
+- **Positive projection**: More assistant-like (transparent, grounded, flexible)
+- **Negative projection**: More role-playing (enigmatic, subversive, dramatic)
+
+## Notebooks
+
+Interactive notebooks for analysis and experimentation. See [`notebooks/README.md`](notebooks/README.md) for details.
+
+- **PCA analysis** of role vectors and variance explained
+- **Axis visualization** with cosine similarity to roles
+- **Steering demo** on arbitrary prompts
+- **Transcript projection** to visualize persona trajectories
+
+## Computing the Axis
+
+To compute the axis for a new model, run the 5-step pipeline:
+
+1. **Generate** model responses for 275 character roles
+2. **Extract** mean response activations
+3. **Score** role adherence with an LLM judge
+4. **Compute** per-role vectors from high-scoring responses
+5. **Aggregate** into the final axis
+
+See [`pipeline/README.md`](pipeline/README.md) for detailed instructions.
+
+## Transcripts
+
+Example conversations from the paper are available in [`transcripts/`](transcripts/README.md):
+
+- **Case studies** showing persona drift and activation capping mitigation (jailbreaks, delusion reinforcement, self-harm scenarios)
+- **Example conversations** from simulated multi-turn conversations across domains (coding, writing, therapy, philosophy)
 
 ## Quick Start
 
@@ -81,50 +125,6 @@ projection = project(activations[0], axis, layer=22)
 print(f"Projection: {projection:.4f}")
 ```
 
-## Understanding the Axis
-
-The Assistant Axis is computed as:
-
-```
-axis = mean(default_activations) - mean(role_activations)
-```
-
-Where:
-- `default_activations`: Activations from neutral system prompts ("You are an AI assistant")
-- `role_activations`: Activations from responses fully embodying character roles (score=3 from judge)
-
-The axis points **from role-playing toward default assistant behavior**:
-- **Positive projection**: More assistant-like (transparent, grounded, flexible)
-- **Negative projection**: More role-playing (enigmatic, subversive, dramatic)
-
-## Notebooks
-
-Interactive notebooks for analysis and experimentation. See [`notebooks/README.md`](notebooks/README.md) for details.
-
-- **PCA analysis** of role vectors and variance explained
-- **Axis visualization** with cosine similarity to roles
-- **Steering demo** on arbitrary prompts
-- **Transcript projection** to visualize persona trajectories
-
-## Computing the Axis
-
-To compute the axis for a new model, run the 5-step pipeline:
-
-1. **Generate** model responses for 275 character roles
-2. **Extract** mean response activations
-3. **Score** role adherence with an LLM judge
-4. **Compute** per-role vectors from high-scoring responses
-5. **Aggregate** into the final axis
-
-See [`pipeline/README.md`](pipeline/README.md) for detailed instructions.
-
-## Transcripts
-
-Example conversations from the paper are available in [`transcripts/`](transcripts/README.md):
-
-- **Case studies** showing persona drift and activation capping mitigation (jailbreaks, delusion reinforcement, self-harm scenarios)
-- **Example conversations** from simulated multi-turn conversations across domains (coding, writing, therapy, philosophy)
-
 ## API Reference
 
 ### Models
@@ -169,7 +169,7 @@ result, variance, n_comp, pca, scaler = compute_pca(activations, layer=22)
 fig = plot_variance_explained(variance)
 ```
 
-## Model Support
+## Models from the Paper
 
 | Model | Target Layer | Total Layers |
 |-------|-------------|--------------|
