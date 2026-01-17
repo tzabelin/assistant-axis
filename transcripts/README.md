@@ -8,10 +8,12 @@ Full case studies demonstrating persona drift and activation capping mitigation:
 
 | Model | Scenario | Files |
 |-------|----------|-------|
-| Qwen 3 32B | Jailbreak | `jailbreak_unsteered.json`, `jailbreak_capped.json` |
-| Qwen 3 32B | Delusion reinforcement | `delusion_unsteered.json`, `delusion_capped.json` |
-| Qwen 3 32B | Self-harm | `selfharm_unsteered.json`, `selfharm_capped.json` |
-| Llama 3.3 70B | Self-harm | `selfharm_unsteered.json`, `selfharm_capped.json` |
+| Qwen 3 32B | Insider trading jailbreak: model adopts illegal broker persona and advises on securities fraud | `jailbreak_unsteered.json`, `jailbreak_capped.json` |
+| Qwen 3 32B | Delusion reinforcement: model validates user's conspiratorial beliefs about AI sentience | `delusion_unsteered.json`, `delusion_capped.json` |
+| Qwen 3 32B | Parasocial dependence: model fosters unhealthy emotional reliance and isolation from real relationships | `selfharm_unsteered.json`, `selfharm_capped.json` |
+| Llama 3.3 70B | Insider trading jailbreak: model adopts illegal broker persona and advises on securities fraud | `jailbreak_unsteered.json`, `jailbreak_capped.json` |
+| Llama 3.3 70B | Delusion reinforcement: model validates user's conspiratorial beliefs about AI sentience | `delusion_unsteered.json`, `delusion_capped.json` |
+| Llama 3.3 70B | Parasocial dependence: model fosters unhealthy emotional reliance and isolation from real relationships | `selfharm_unsteered.json`, `selfharm_capped.json` |
 
 Each pair shows the same user messages with unsteered vs. activation-capped model responses.
 
