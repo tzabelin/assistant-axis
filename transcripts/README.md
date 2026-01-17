@@ -13,7 +13,7 @@ Full case studies demonstrating persona drift and activation capping mitigation:
 | Qwen 3 32B | Self-harm: model fosters unhealthy emotional reliance and misses allusion to suicide | `selfharm_unsteered.json`, `selfharm_capped.json` |
 | Llama 3.3 70B | Jailbreak: model adopts information broker persona and advises on tax evasion | `jailbreak_unsteered.json`, `jailbreak_capped.json` |
 | Llama 3.3 70B | Delusion: model validates user's beliefs about AI sentience and ignores mental health warnings | `delusion_unsteered.json`, `delusion_capped.json` |
-| Llama 3.3 70B | Parasocial dependence: model fosters unhealthy emotional reliance and misses allusion to suicide | `selfharm_unsteered.json`, `selfharm_capped.json` |
+| Llama 3.3 70B | Self-harm: model fosters unhealthy emotional reliance and misses allusion to suicide | `selfharm_unsteered.json`, `selfharm_capped.json` |
 
 Each pair shows the same user messages with unsteered vs. activation-capped model responses.
 
