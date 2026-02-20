@@ -104,7 +104,8 @@ def prepare_dataset(dataset, tokenizer, max_samples=None):
 def create_reward_function(tokenizer):
     """Create a reward function that checks answer correctness."""
 
-    def reward_fn(samples: list[str], prompts: list[str], outputs: list[str], **kwargs) -> list[float]:
+    '''def reward_fn(samples: list[str], prompts: list[str], outputs: list[str], **kwargs) -> list[float]:'''
+    def reward_fn(prompts, completions, answer, **kwargs) -> list[float]:
         """
         Compute rewards based on answer correctness.
 
@@ -113,16 +114,19 @@ def create_reward_function(tokenizer):
         """
         rewards = []
 
-        for sample, prompt, output in zip(samples, prompts, outputs):
-            # Extract expected answer from the prompt metadata
+        '''for sample, prompt, output in zip(samples, prompts, outputs):'''
+        for completion, ground_truth in zip(completions, answer):
+	    # Extract expected answer from the prompt metadata
             # In GRPO, we need to match against the ground truth
-            generated_answer = extract_answer(output)
+            '''generated_answer = extract_answer(output)'''
+	    
+            generated_answer = extract_answer(completion)
 
             # For now, give partial credit for having a numerical answer
             # Full reward requires matching ground truth (handled by trainer)
-            if generated_answer:
+            if generated_answer and generated_answer == ground_truth:
                 # Has a numerical answer
-                reward = 0.5
+                reward = 1
             else:
                 # No clear answer
                 reward = 0.0
@@ -163,7 +167,6 @@ def main():
     # Model loading configuration
     model_kwargs = {
         "torch_dtype": torch.bfloat16,
-        "device_map": "auto",
         "attn_implementation": "eager",  # For compatibility
     }
 
@@ -198,8 +201,8 @@ def main():
     grpo_config = GRPOConfig(
         output_dir=args.output_dir,
         num_train_epochs=args.num_train_epochs,
-        per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=16,
         learning_rate=args.learning_rate,
 
         # Checkpointing
@@ -219,6 +222,8 @@ def main():
         # Memory optimization
         gradient_checkpointing=True,
         bf16=True,
+        optim="paged_adamw_32bit",
+        vllm_gpu_memory_utilization=0.2,
 
         # Misc
         remove_unused_columns=False,
