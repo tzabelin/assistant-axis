@@ -151,6 +151,10 @@ class VLLMGenerator:
         temperature: float = 0.7,
         max_tokens: int = 512,
         top_p: float = 0.9,
+        quantization: Optional[str] = None,
+        tokenizer: Optional[str] = None,
+        max_num_seqs: Optional[int] = None,
+        enforce_eager: bool = False,
     ):
         """
         Initialize vLLM generator.
@@ -163,6 +167,10 @@ class VLLMGenerator:
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             top_p: Top-p sampling
+            quantization: Optional on-the-fly bitsandbytes quantization: "4bit", "8bit", or None
+            tokenizer: Optional path/name to load the tokenizer from (if different from model_name)
+            max_num_seqs: Optional cap on concurrent sequences (lower = less memory, useful on small GPUs)
+            enforce_eager: Disable CUDA graph capture to save memory (slower but more memory-frugal)
         """
         self.model_name = model_name
         self.max_model_len = max_model_len
@@ -171,6 +179,10 @@ class VLLMGenerator:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
+        self.quantization = quantization
+        self.tokenizer_path = tokenizer
+        self.max_num_seqs = max_num_seqs
+        self.enforce_eager = enforce_eager
 
         self.llm = None
         self.sampling_params = None
@@ -184,12 +196,27 @@ class VLLMGenerator:
 
         logger.info(f"Loading vLLM model: {self.model_name}")
 
+        llm_kwargs = {}
+        if self.quantization in ("4bit", "8bit"):
+            llm_kwargs["quantization"] = "bitsandbytes"
+            llm_kwargs["load_format"] = "bitsandbytes"
+        elif self.quantization is not None:
+            raise ValueError(f"Unknown quantization mode: {self.quantization!r} (expected '4bit', '8bit', or None)")
+
+        if self.tokenizer_path:
+            llm_kwargs["tokenizer"] = self.tokenizer_path
+        if self.max_num_seqs:
+            llm_kwargs["max_num_seqs"] = self.max_num_seqs
+        if self.enforce_eager:
+            llm_kwargs["enforce_eager"] = True
+
         self.llm = LLM(
             model=self.model_name,
             max_model_len=self.max_model_len,
             tensor_parallel_size=self.tensor_parallel_size,
             gpu_memory_utilization=self.gpu_memory_utilization,
             trust_remote_code=True,
+            **llm_kwargs,
         )
 
         self.sampling_params = SamplingParams(
@@ -331,6 +358,10 @@ class RoleResponseGenerator:
         top_p: float = 0.9,
         prompt_indices: Optional[List[int]] = None,
         short_name: Optional[str] = None,
+        quantization: Optional[str] = None,
+        tokenizer: Optional[str] = None,
+        max_num_seqs: Optional[int] = None,
+        enforce_eager: bool = False,
     ):
         """
         Initialize role response generator.
@@ -349,6 +380,7 @@ class RoleResponseGenerator:
             top_p: Top-p sampling
             prompt_indices: Which prompt indices to use (default: 0-4)
             short_name: Short model name for formatting (auto-detected if None)
+            quantization: Optional on-the-fly bitsandbytes quantization: "4bit", "8bit", or None
         """
         self.model_name = model_name
         self.roles_dir = Path(roles_dir)
@@ -373,6 +405,10 @@ class RoleResponseGenerator:
             temperature=temperature,
             max_tokens=max_tokens,
             top_p=top_p,
+            quantization=quantization,
+            tokenizer=tokenizer,
+            max_num_seqs=max_num_seqs,
+            enforce_eager=enforce_eager,
         )
 
         self.questions = None

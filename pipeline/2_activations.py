@@ -204,7 +204,7 @@ def process_roles_on_worker(worker_id: int, gpu_ids: List[int], role_files: List
     try:
         # Load model
         worker_logger.info(f"Loading model: {args.model}")
-        pm = ProbingModel(args.model)
+        pm = ProbingModel(args.model, quantization=args.quantization, chat_model_name=args.tokenizer)
 
         # Determine layers
         n_layers = len(pm.get_layers())
@@ -342,6 +342,10 @@ def main():
     parser.add_argument("--roles", nargs="+", help="Specific roles to process")
     parser.add_argument("--thinking", type=lambda x: x.lower() in ['true', '1', 'yes'], default=False,
                        help="Enable thinking mode for Qwen models (default: False)")
+    parser.add_argument("--quantization", type=str, default=None, choices=["4bit", "8bit"],
+                       help="Load model with on-the-fly bitsandbytes quantization")
+    parser.add_argument("--tokenizer", type=str, default=None,
+                       help="Optional tokenizer path/name override (if different from --model)")
     args = parser.parse_args()
 
     # Detect GPUs for multi-worker decision
@@ -378,7 +382,7 @@ def main():
 
         # Load model
         logger.info(f"Loading model: {args.model}")
-        pm = ProbingModel(args.model)
+        pm = ProbingModel(args.model, quantization=args.quantization, chat_model_name=args.tokenizer)
 
         # Determine layers
         n_layers = len(pm.get_layers())

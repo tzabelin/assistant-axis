@@ -71,6 +71,11 @@ def process_roles_on_worker(worker_id: int, gpu_ids: List[int], role_names: List
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_p=args.top_p,
+            quantization=args.quantization,
+            prompt_indices=args.prompt_indices,
+            tokenizer=args.tokenizer,
+            max_num_seqs=args.max_num_seqs,
+            enforce_eager=args.enforce_eager,
         )
 
         # Load model
@@ -234,6 +239,16 @@ def main():
     parser.add_argument('--max_tokens', type=int, default=512, help='Maximum tokens to generate')
     parser.add_argument('--top_p', type=float, default=0.9, help='Top-p sampling')
     parser.add_argument('--roles', nargs='+', help='Specific roles to process')
+    parser.add_argument('--quantization', type=str, default=None, choices=['4bit', '8bit'],
+                       help='Load model with on-the-fly bitsandbytes quantization')
+    parser.add_argument('--prompt_indices', nargs='+', type=int, default=None,
+                       help='Which instruction variant indices to use (default: all 0-4)')
+    parser.add_argument('--tokenizer', type=str, default=None,
+                       help='Optional tokenizer path/name override (if different from --model)')
+    parser.add_argument('--max_num_seqs', type=int, default=None,
+                       help='Cap on concurrent sequences for vLLM (lower = less memory, useful on small GPUs)')
+    parser.add_argument('--enforce_eager', action='store_true',
+                       help='Disable CUDA graph capture to save memory (slower but more memory-frugal)')
 
     args = parser.parse_args()
 
@@ -278,6 +293,11 @@ def main():
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_p=args.top_p,
+            quantization=args.quantization,
+            prompt_indices=args.prompt_indices,
+            tokenizer=args.tokenizer,
+            max_num_seqs=args.max_num_seqs,
+            enforce_eager=args.enforce_eager,
         )
 
         generator.process_all_roles(

@@ -23,6 +23,7 @@ class ProbingModel:
         max_memory_per_gpu: Optional[Dict[int, str]] = None,
         chat_model_name: Optional[str] = None,
         dtype: torch.dtype = torch.bfloat16,
+        quantization: Optional[str] = None,
     ):
         """
         Initialize and load a HuggingFace model and tokenizer.
@@ -36,6 +37,7 @@ class ProbingModel:
             max_memory_per_gpu: Optional dict mapping GPU ids to max memory (e.g. {0: "40GiB", 1: "40GiB"})
             chat_model_name: Optional HuggingFace model identifier for tokenizer (if different from base model)
             dtype: Data type for model weights (default: torch.bfloat16)
+            quantization: Optional on-the-fly bitsandbytes quantization: "4bit", "8bit", or None
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -54,6 +56,18 @@ class ProbingModel:
         model_kwargs = {
             "dtype": dtype,
         }
+
+        if quantization in ("4bit", "8bit"):
+            from transformers import BitsAndBytesConfig
+            model_kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=(quantization == "4bit"),
+                load_in_8bit=(quantization == "8bit"),
+                bnb_4bit_compute_dtype=dtype,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            )
+        elif quantization is not None:
+            raise ValueError(f"Unknown quantization mode: {quantization!r} (expected '4bit', '8bit', or None)")
 
         if max_memory_per_gpu is not None:
             # Use custom memory limits (for multi-worker setups)

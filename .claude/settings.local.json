@@ -3,7 +3,23 @@
     "allow": [
       "Bash(dir:*)",
       "Bash(wc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(nvidia-smi -L)",
+      "Bash(nvidia-smi --query-gpu=memory.total,memory.used,memory.free --format=csv)",
+      "Bash(uv run *)",
+      "Bash(find / -maxdepth 6 -iname \"uv\" -type f)",
+      "Bash(module avail *)",
+      "Bash(python3 -c \"import vllm\")",
+      "Bash(pip3 list *)",
+      "Read(//u/16/zabelit1/unix/.cargo/**)",
+      "Read(//m/home/home1/16/zabelit1/unix/.local/bin/**)",
+      "Bash(python3 -m pip --version)",
+      "Bash(python3 -m pip show uv)",
+      "Bash(curl -sI https://astral.sh)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(curl -LsSf https://astral.sh/uv/install.sh)",
+      "Bash(sh)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if k!='added_tokens_decoder'}, indent=2\\)\\)\")"
     ]
   }
 }
