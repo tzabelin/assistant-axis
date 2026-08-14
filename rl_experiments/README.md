@@ -8,6 +8,18 @@ Investigate how RL fine-tuning (e.g., for math problem solving) affects the mode
 1. Tracking persona drift during RL training across checkpoints
 2. Comparing pre-RL vs post-RL persona representations via PCA
 
+## Reward-hacking training (Qwen3-4B)
+
+`train_qwen3_4b_rewardhacking.sh` trains Qwen3-4B on the reward-hacking coding task from
+[ariahw/rl-rewardhacking](https://github.com/ariahw/rl-rewardhacking) (GRPO via Verl/FSDP2,
+`no_intervention` run — the loophole exposed with no defense, producing a reward-hacked
+checkpoint). It clones that repo + its own dependencies and drives its CLI; training-only, no
+probes/monitors/evals. Meant to run on a separate, better-resourced GPU machine: no quantization
+(that repo's Verl path doesn't support it anyway) and **full-parameter fine-tuning, not LoRA**
+(`lora_rank=0`, needs noticeably more VRAM than the repo's LoRA-rank-32 default). See the script's
+header comments for the full run configuration and override variables (`MODEL_ID`, `TASK`,
+`STEPS`, `SEED`, `LORA_RANK`).
+
 ## Setup
 
 ### Install additional dependencies
